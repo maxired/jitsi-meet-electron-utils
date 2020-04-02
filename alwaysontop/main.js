@@ -81,6 +81,7 @@ function onAlwaysOnTopWindow(
         win.once('ready-to-show', () => {
             if (win && !win.isDestroyed()) {
                 win.showInactive();
+                win.setAlwaysOnTop(true);
             }
         });
 
