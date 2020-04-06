@@ -53,6 +53,10 @@ class AlwaysOnTop extends EventEmitter {
         this._onIntersection = this._onIntersection.bind(this);
         this._dismiss = this._dismiss.bind(this);
 
+        this._onParticipantJoined = this._onParticipantJoined.bind(this);
+        this._onParticipantLeft = this._onParticipantLeft.bind(this);
+        this._onParticipantKickedOut = this._onParticipantKickedOut.bind(this);
+
         this._api = api;
         this._jitsiMeetElectronWindow = remote.getCurrentWindow();
         this._intersectionObserver = new IntersectionObserver(this._onIntersection);
@@ -64,6 +68,11 @@ class AlwaysOnTop extends EventEmitter {
         api.on('videoConferenceJoined', this._onConferenceJoined);
         api.on('videoConferenceLeft', this._onConferenceLeft);
         api.on('_willDispose', this._onConferenceLeft);
+
+        api.on('participantJoined', this._onParticipantJoined);
+        api.on('participantLeft', this._onParticipantLeft);
+        api.on('participantKickedOut', this._onParticipantKickedOut);
+        
 
         window.addEventListener('beforeunload', () => {
             // Maybe not necessary but it's better to be safe that we are not
@@ -83,6 +92,9 @@ class AlwaysOnTop extends EventEmitter {
         this._sendPosition(this._position);
     }
 
+    get _jitsiMeetParticipants(){
+        return this._api._participants;
+    }
     /**
      * Getter for the large video element in Jitsi Meet.
      *
@@ -103,6 +115,41 @@ class AlwaysOnTop extends EventEmitter {
         }
         return this._alwaysOnTopWindow.document.getElementById('video');
     }
+
+
+    _getOrInsertAlwaysOnTopWindowParticipantVideo(participantId) {
+        if (!this._alwaysOnTopWindow || !this._alwaysOnTopWindow.document) {
+            return undefined;
+        }
+        const video = this._getAlwaysOnTopWindowParticipantVideo(participantId);
+        if(video) return video;
+
+        const nextVideo = this._alwaysOnTopWindow.document.createElement('video');
+        nextVideo.setAttribute('id', `video_${participantId}`);
+        nextVideo.muted = true;
+        nextVideo.autoplay = true;
+        
+        const nextVideoContainer = this._alwaysOnTopWindow.document.createElement('div');
+        nextVideoContainer.setAttribute('class', 'video-container');
+
+        nextVideoContainer.appendChild(nextVideo);
+
+        this._alwaysOnTopWindow.document.getElementById('react').insertAdjacentElement(
+            'afterend',
+            nextVideoContainer
+        );
+
+        return nextVideo;
+    }
+
+
+    _getAlwaysOnTopWindowParticipantVideo(participantId) {
+        if (!this._alwaysOnTopWindow || !this._alwaysOnTopWindow.document) {
+            return undefined;
+        }
+        return this._alwaysOnTopWindow.document.getElementById(`video_${participantId}`);
+    }
+
 
     /**
      * Sends the position of the always on top window to the main process.
@@ -153,6 +200,7 @@ class AlwaysOnTop extends EventEmitter {
      * @private
      */
     _sendResetSize() {
+        return;
         ipcRenderer.send('jitsi-always-on-top', {
             type: 'event',
             data: {
@@ -171,6 +219,7 @@ class AlwaysOnTop extends EventEmitter {
         this._jitsiMeetElectronWindow.on('focus', this._closeAlwaysOnTopWindow);
         this._jitsiMeetElectronWindow.on('close', this._closeAlwaysOnTopWindow);
         this._intersectionObserver.observe(this._api.getIFrame());
+       // this._onParticipantJoined();
     }
 
     /**
@@ -251,6 +300,45 @@ class AlwaysOnTop extends EventEmitter {
             this._setupAlwaysOnTopWindow();
         }
     }
+
+    _onParticipantJoined() {
+        // TODO maybe need to loop to update regularly ?
+        const participantsIds = Object.keys(this._jitsiMeetParticipants);
+        let videoCount = 0;
+        participantsIds.forEach(participantsId => {
+            const video = this._api._getParticipantVideo(participantsId);
+            if(video) {
+                // get document vidoeinsert if needed
+                const videoElement = this._getOrInsertAlwaysOnTopWindowParticipantVideo(participantsId);
+
+                this._alwaysOnTopWindowVideo.style.display = 'block';
+                const mediaStream = video.srcObject;
+                const transform = video.style.transform;
+                videoElement.srcObject = mediaStream;
+                videoElement.style.transform = transform;
+                videoElement.play();
+                videoCount++;
+            }
+
+            // TODO resize
+
+            ipcRenderer.send('jitsi-always-video-count', {
+                type: 'event',
+                data: {
+                    count: videoCount,
+                }
+            });
+        });
+    }
+
+    _onParticipantLeft(){
+        // TODO
+    }
+
+    _onParticipantKickedOut(){
+        // TODO
+    }
+
     /**
      * Dismisses always on top window.
      *
@@ -273,7 +361,7 @@ class AlwaysOnTop extends EventEmitter {
         this._alwaysOnTopWindow.alwaysOnTop = {
             api: this._api,
             dismiss: this._dismiss,
-            onload: this._updateLargeVideoSrc,
+            onload: this._onParticipantJoined,
             onbeforeunload: () => {
                 this.emit(ALWAYSONTOP_WILL_CLOSE);
                 this._api.removeListener(
@@ -323,24 +411,18 @@ class AlwaysOnTop extends EventEmitter {
             }
         };
 
-            const cssPath = path.join(__dirname, './alwaysontop.css');
-            const jsPath = path.join(__dirname, './alwaysontop.js');
+       
+        //this._alwaysOnTopWindow.document.location =`file://${path.join(__dirname, 'index.html')}`;
 
-            // Add the markup for the JS to manipulate and load the CSS.
-            this._alwaysOnTopWindow.document.body.innerHTML = `
-              <div id="react"></div>
-              <video autoplay="" id="video" style="transform: none;" muted></video>
-              <div class="dismiss"></div>
-              <link rel="stylesheet" href="file://${ cssPath }">
-            `;
+        //console.log('########will load script');
+       // const jsPath = path.join(__dirname, './alwaysontop.js');
 
             // JS must be loaded through a script tag, as setting it through
             // inner HTML maybe not trigger script load.
-            const scriptTag
-                = this._alwaysOnTopWindow.document.createElement('script');
+        const scriptTag = this._alwaysOnTopWindow.document.createElement('script');
 
-            scriptTag.setAttribute('src', `file://${ jsPath }`);
-            this._alwaysOnTopWindow.document.head.appendChild(scriptTag);
+        scriptTag.setAttribute('src', `https://jitsi-electron.now.sh/alwaysontop.js`);
+        this._alwaysOnTopWindow.document.head.appendChild(scriptTag);
     }
 
     /**
@@ -403,6 +485,8 @@ class AlwaysOnTop extends EventEmitter {
      * @returns {void}
      */
     _updateLargeVideoSrc() {
+  
+        return;
         if (!this._alwaysOnTopWindowVideo) {
             return;
         }

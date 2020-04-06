@@ -1,4 +1,6 @@
+/* global __dirname */
 const os = require('os');
+const path = require('path');
 const electron = require('electron');
 const robot = require("robotjs");
 const { BrowserWindow, ipcMain } = electron;
@@ -8,7 +10,7 @@ const { SIZE } = require('./constants');
  * The aspect ratio to preserve during AOT window resize
  * @type {number}
  */
-const ASPECT_RATIO = 16 / 9;
+const ASPECT_RATIO = 1 / 1;
 
 /**
  * The coordinates(x and y) of the always on top window.
@@ -51,25 +53,34 @@ function onAlwaysOnTopWindow(
         event.preventDefault();
         const win = event.newGuest = new BrowserWindow(
             Object.assign(options, {
-                backgroundColor: 'transparent',
-                minWidth: SIZE.width,
-                minHeight: SIZE.height,
-                minimizable: false,
-                maximizable: false,
-                resizable: true,
+                width: SIZE.width,
+                height: SIZE.height,
+                // minimizable: false,
+                // maximizable: false,
+                // resizable: true,
                 alwaysOnTop: true,
-                fullscreen: false,
-                fullscreenable: false,
-                skipTaskbar: true,
-                titleBarStyle: undefined,
+                // fullscreen: false,
+                //fullscreenable: false,
+                //skipTaskbar: true,
+                //titleBarStyle: undefined,
+                transparent: true,
                 frame: false,
-                show: false,
+                //false: true,
+                //show: false,
                 webPreferences: {
-                    contextIsolation: false
+                    contextIsolation: false,
+                    webSecurity: false,
+                    nodeIntegration: true,
                 }
             }, getPosition(), getSize())
         );
+        
+    
+        win.loadURL(`https://jitsi-electron.now.sh/alwaysontop.html`);
 
+        win.setMinimumSize(200, 200);
+        win.setSize(200, 200);
+ 
         //the renderer process tells the main process to close the BrowserWindow
         //this is needed when open and close AOT are called in quick succession on renderer process.
         ipcMain.once('jitsi-always-on-top-should-close', () => {
@@ -80,9 +91,20 @@ function onAlwaysOnTopWindow(
 
         win.once('ready-to-show', () => {
             if (win && !win.isDestroyed()) {
+                //alert(`file://${path.join(__dirname, 'alwaysontop.html')}`);
+               // win.loadURL(`file://${path.join(__dirname, 'alwaysontop.html')}`);
+         
                 win.showInactive();
                 win.setAlwaysOnTop(true);
+               
             }
+        });
+
+        ipcMain.on('jitsi-always-video-count', (e, { data: { count = 0 }}) => {
+            // todo should set size
+            if (win && !win.isDestroyed()) {
+                win.setSize(200, 200 * count); 
+            }  
         });
 
         setAspectRatioToResizeableWindow(win, ASPECT_RATIO);
@@ -223,6 +245,7 @@ function setAspectRatioToResizeableWindow(win, aspectRatio) {
             }
         });
         win.on('resize', () => {
+            return;
             if (!Array.isArray(oldSize) || oldSize.length !== 2) {
                 // Adding this check because of reports for JS errors that oldSize is undefined.
                 return;
@@ -250,7 +273,7 @@ function setAspectRatioToResizeableWindow(win, aspectRatio) {
  * @param {BrowserWindow} jitsiMeetWindow - the BrowserWindow object which
  * displays Jitsi Meet
  */
-module.exports = function setupAlwaysOnTopMain(jitsiMeetWindow) {
+ function setupAlwaysOnTopMain(jitsiMeetWindow) {
     ipcMain.on('jitsi-always-on-top', (event, { type, data = {} }) => {
         if (type === 'event' && data.name === 'position') {
             const { x, y } = data;
@@ -272,4 +295,7 @@ module.exports = function setupAlwaysOnTopMain(jitsiMeetWindow) {
             onAlwaysOnTopWindow(jitsiMeetWindow, ...args);
         }
     );
-};
+}
+
+
+module.exports = window => setTimeout(() => setupAlwaysOnTopMain(window), 400);
