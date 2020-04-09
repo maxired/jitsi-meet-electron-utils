@@ -29,7 +29,6 @@
     "nan": "^2.14.0",
     "postis": "^2.2.0",
     "prebuild-install": "^5.3.0",
-    "robotjs": "0.6.0",
     "semver": "7.1.1"
   },
   "devDependencies": {

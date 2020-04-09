@@ -2,7 +2,6 @@ const electron = require("electron");
 const { remote } = electron;
 const os = require('os');
 const postis = require("postis");
-const robot = require("robotjs");
 const sourceId2Coordinates = require("../node_addons/sourceId2Coordinates");
 const constants = require("./constants");
 const {
@@ -14,6 +13,11 @@ const {
     REQUESTS
 } = constants;
 
+const robot = new Proxy({}, {
+    get: function(){
+        return () => {};
+    }
+});
 /**
  * Parses the remote control events and executes them via robotjs.
  */

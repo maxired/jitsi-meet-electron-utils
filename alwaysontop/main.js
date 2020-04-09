@@ -2,7 +2,6 @@
 const os = require('os');
 const path = require('path');
 const electron = require('electron');
-const robot = require("robotjs");
 const { BrowserWindow, ipcMain } = electron;
 const { SIZE } = require('./constants');
 
@@ -232,18 +231,6 @@ function setAspectRatioToResizeableWindow(win, aspectRatio) {
             size.height = height;
         });
     } else {
-        win.on('will-resize', (e, newBounds) => {
-            oldSize = win.getSize();
-            const mousePos = robot.getMousePos();
-            const windowBottomRightPos = {
-                x: newBounds.x + newBounds.width - 16,
-                y: newBounds.y + newBounds.height - 16,
-            };
-            //prevent resize from bottom right corner as it is buggy.
-            if (mousePos.x >= windowBottomRightPos.x && mousePos.y >= windowBottomRightPos.y) {
-                e.preventDefault();
-            }
-        });
         win.on('resize', () => {
             return;
             if (!Array.isArray(oldSize) || oldSize.length !== 2) {
