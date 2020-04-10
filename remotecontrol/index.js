@@ -2,7 +2,7 @@ const electron = require("electron");
 const { remote } = electron;
 const os = require('os');
 const postis = require("postis");
-const sourceId2Coordinates = require("../node_addons/sourceId2Coordinates");
+const sourceId2Coordinates = () => undefined;
 const constants = require("./constants");
 const {
     EVENTS,

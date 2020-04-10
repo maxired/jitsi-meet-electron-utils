@@ -6,8 +6,7 @@
   "scripts": {
     "lint": "eslint .",
     "test": "TESTING=true mocha",
-    "validate": "npm ls",
-    "install": "prebuild-install || node-gyp rebuild"
+    "validate": "npm ls"
   },
   "pre-commit": [
     "lint"
@@ -28,14 +27,12 @@
   "dependencies": {
     "nan": "^2.14.0",
     "postis": "^2.2.0",
-    "prebuild-install": "^5.3.0",
     "semver": "7.1.1"
   },
   "devDependencies": {
     "eslint": ">=3",
     "eslint-plugin-jsdoc": "*",
     "mocha": "^4.0.1",
-    "prebuild": "^9.1.1",
     "precommit-hook": "3.0.0"
   }
 }
